@@ -1,4 +1,4 @@
-import React, { Fragment } from 'react';
+import React from 'react';
 import { Component } from 'react';
 
 import {
@@ -9,9 +9,12 @@ import {
   FieldLabel,
   FieldControl,
   TelevisionWhiteImage,
+  BlurImage,
   GamepadWhiteImage,
+  ShaderSettingsTab,
   // ScreenSizeSelect,
   // ScreenControlsSelect,
+  // Select,
   Switch,
   WebrcadeContext,
 } from '@webrcade/app-common';
@@ -24,18 +27,26 @@ export class NesSettingsEditor extends Component {
       focusGridComps: null,
       values: {},
     };
+
+    this.busy = false;
   }
 
   componentDidMount() {
     const { emulator } = this.props;
 
+
+    const values = {
+      origBilinearMode: emulator.getPrefs().isBilinearEnabled(),
+      bilinearMode: emulator.getPrefs().isBilinearEnabled(),
+      origScreenSize: emulator.getPrefs().getScreenSize(),
+      screenSize: emulator.getPrefs().getScreenSize(),
+    }
+
+    this.shaderService = this.props.emulator.getShadersService();
+    this.shaderService.addEditorValues(values);
+
     this.setState({
-      values: {
-        origBilinearMode: emulator.getPrefs().isBilinearEnabled(),
-        bilinearMode: emulator.getPrefs().isBilinearEnabled(),
-        origScreenSize: emulator.getPrefs().getScreenSize(),
-        screenSize: emulator.getPrefs().getScreenSize(),
-      },
+      values: values
     });
   }
 
@@ -53,6 +64,8 @@ export class NesSettingsEditor extends Component {
 
     const tabs = [];
 
+    let tab = 0;
+
     if (emulator.isFdsGame()) {
       tabs.push(          {
         image: GamepadWhiteImage,
@@ -60,14 +73,14 @@ export class NesSettingsEditor extends Component {
         content: (
           <NesSettingsTab
             emulator={emulator}
-            showOnScreenControls={showOnScreenControls}
-            isActive={tabIndex === 0}
+            isActive={tabIndex === tab}
             setFocusGridComps={setFocusGridComps}
             values={values}
             setValues={setValues}
           />
         ),
       });
+      tab++;
     }
 
     tabs.push({
@@ -76,7 +89,7 @@ export class NesSettingsEditor extends Component {
         content: (
           <AppDisplaySettingsTab
             emulator={emulator}
-            isActive={tabIndex === 1}
+            isActive={tabIndex === tab}
             showOnScreenControls={showOnScreenControls}
             setFocusGridComps={setFocusGridComps}
             values={values}
@@ -84,11 +97,30 @@ export class NesSettingsEditor extends Component {
           />
         )
     });
+    tab++;
+
+    tabs.push({
+      image: BlurImage,
+      label: 'Shader Settings',
+      content: (
+        <ShaderSettingsTab
+          shaderService={this.shaderService}
+          emulator={emulator}
+          isActive={tabIndex === tab}
+          setFocusGridComps={setFocusGridComps}
+          values={values}
+          setValues={setValues}
+        />
+      )
+    });
 
     return (
       <EditorScreen
         showCancel={true}
-        onOk={() => {
+        onOk={async () => {
+          if (this.busy) return;
+          this.busy = true;
+
           if (values.swapDisk) {
             emulator.flipDisk();
           }
@@ -107,6 +139,10 @@ export class NesSettingsEditor extends Component {
           if (change) {
             emulator.getPrefs().save();
           }
+
+          // Set the shader
+          await this.shaderService.setShader(values.shaderId);
+
           onClose();
         }}
         onClose={onClose}
@@ -165,4 +201,3 @@ class NesSettingsTab extends FieldsTab {
   }
 }
 NesSettingsTab.contextType = WebrcadeContext;
-

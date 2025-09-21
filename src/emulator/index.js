@@ -163,11 +163,7 @@ export class Emulator extends RetroAppWrapper {
     }, 300);
   }
 
-  applyGameSettings() {
-    // const { Module } = window;
-    // const props = this.getProps();
-    // let options = 0;
-    // Module._wrc_set_options(options);
+  async applyGameSettings() {
   }
 
   isForceAspectRatio() {
@@ -185,3 +181,4 @@ export class Emulator extends RetroAppWrapper {
 
   getShotAspectRatio() { return this.getDefaultAspectRatio(); }
 }
+
