@@ -2,7 +2,7 @@ import {
   DisplayLoop,
   ScriptAudioProcessor,
   RetroAppWrapper,
-  LOG
+  LOG,
 } from '@webrcade/app-common';
 
 export class Emulator extends RetroAppWrapper {
