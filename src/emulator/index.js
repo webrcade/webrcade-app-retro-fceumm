@@ -1,6 +1,8 @@
 import {
+  DisplayLoop,
+  ScriptAudioProcessor,
   RetroAppWrapper,
-  LOG
+  LOG,
 } from '@webrcade/app-common';
 
 export class Emulator extends RetroAppWrapper {
@@ -13,6 +15,49 @@ export class Emulator extends RetroAppWrapper {
 
     this.fdsGame = false;
     window.emulator = this;
+
+    this.lastFrequency = 60;
+    this.frequency = 60;
+
+    this.audioStarted = 0;
+    this.total = 0;
+    this.count = 0;
+
+    this.audioCallback = (offset, length) => {
+      this.total += length;
+      this.count = this.count + 1;
+
+      if (this.count === 60) {
+        //console.log("total: " + this.total);
+        this.total = 0;
+        this.count = 0;
+      }
+
+      length = length << 1;
+      const audioArray = new Int16Array(window.Module.HEAP16.buffer, offset, length);
+      this.audioProcessor.storeSoundCombinedInput(audioArray, 2, length, 0, 32768);
+    };
+  }
+
+  createAudioProcessor() {
+    return new ScriptAudioProcessor(
+      2,
+      48000,
+      8192 + 4096,
+      2048
+    ).setDebug(this.debug);
+  }
+
+  onFrame() {
+    if (this.audioStarted !== -1) {
+      if (this.audioStarted > 1) {
+        this.audioStarted = -1;
+        // Start the audio processor
+        this.audioProcessor.start();
+      } else {
+        this.audioStarted++;
+      }
+    }
   }
 
   detectPal(filename) {
@@ -138,6 +183,11 @@ export class Emulator extends RetroAppWrapper {
     return this.getProps().pal || this.detectPal(this.filename) ? 1 : 0;
   }
 
+  setIsNtsc(val) {
+    this.frequency = val ? 60 : 50;
+    console.log("Set frequency to: " + this.frequency);
+  }
+
   fdsBiosMissing() {
     this.setExitErrorMessage("FDS BIOS image (disksys.rom) missing");
   }
@@ -163,11 +213,7 @@ export class Emulator extends RetroAppWrapper {
     }, 300);
   }
 
-  applyGameSettings() {
-    // const { Module } = window;
-    // const props = this.getProps();
-    // let options = 0;
-    // Module._wrc_set_options(options);
+  async applyGameSettings() {
   }
 
   isForceAspectRatio() {
@@ -183,5 +229,26 @@ export class Emulator extends RetroAppWrapper {
     this.updateScreenSize();
   }
 
+  createDisplayLoop(debug) {
+    const loop = new DisplayLoop(
+      this.frequency,
+      true, // vsync
+      debug, // debug
+      false,
+    );
+    // loop.setAdjustTimestampEnabled(false);
+    return loop;
+  }
+
+  getDisplayLoopReturn() {
+    if (this.lastFrequency !== this.frequency) {
+      this.lastFrequency = this.frequency;
+      console.log('returning: ' + this.frequency);
+      return this.frequency;
+    }
+    return undefined;
+  }
+
   getShotAspectRatio() { return this.getDefaultAspectRatio(); }
 }
+
