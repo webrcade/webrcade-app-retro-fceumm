@@ -94,6 +94,35 @@ export class Emulator extends RetroAppWrapper {
     return 'js/fceumm_libretro.js';
   }
 
+  setRoms(uid, frontendArray, biosBuffers, romBytes, ext) {
+    super.setRoms(uid, frontendArray, biosBuffers, romBytes, ext);
+    // Detect FDS by magic bytes:
+    //   headered format:  FDS\x1a  (0x46 0x44 0x53 0x1A)
+    //   raw/headerless:   \x01*NINTENDO-HVC*  (most common in the wild)
+    this.isFdsContent = false;
+    if (romBytes && romBytes.length >= 4) {
+      if (romBytes[0] === 0x46 && romBytes[1] === 0x44 &&
+          romBytes[2] === 0x53 && romBytes[3] === 0x1A) {
+        this.isFdsContent = true;
+      } else if (romBytes.length >= 15 &&
+          romBytes[0] === 0x01 &&
+          romBytes[1] === 0x2A && romBytes[2] === 0x4E && romBytes[3] === 0x49 &&
+          romBytes[4] === 0x4E && romBytes[5] === 0x54 && romBytes[6] === 0x45 &&
+          romBytes[7] === 0x4E && romBytes[8] === 0x44 && romBytes[9] === 0x4F &&
+          romBytes[10] === 0x2D && romBytes[11] === 0x48 && romBytes[12] === 0x56 &&
+          romBytes[13] === 0x43 && romBytes[14] === 0x2A) {
+        this.isFdsContent = true;
+      }
+    }
+  }
+
+  getHashFileExtension() {
+    if (this.isFdsContent) {
+      return 'fds';
+    }
+    return 'nes';
+  }
+
   getPrefs() {
     return this.prefs;
   }
@@ -214,6 +243,18 @@ export class Emulator extends RetroAppWrapper {
   }
 
   async applyGameSettings() {
+    // // MOCK: fire a test achievement toast every 10 seconds
+    // const mockAchievements = [
+    //   { title: 'Off to the Tropics', subtitle: 'Clear Stage 1: Jungle', badge: '408441' },
+    //   { title: 'Mission Impossible', subtitle: 'Clear the game without dying', badge: '408442' },
+    //   { title: 'Speed Runner', subtitle: 'Complete Stage 1 in under 60 seconds', badge: '408443' },
+    // ];
+    // let mockIdx = 0;
+    // setInterval(() => {
+    //   const a = mockAchievements[mockIdx % mockAchievements.length];
+    //   this.onAchievementUnlocked(a.title, a.subtitle, a.badge);
+    //   mockIdx++;
+    // }, 10000);
   }
 
   isForceAspectRatio() {
